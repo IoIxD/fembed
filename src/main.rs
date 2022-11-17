@@ -13,7 +13,7 @@ use askama::*;
 
 lazy_static!(
     pub static ref URL_REGEX: Regex = Regex::new(
-        &r"(https?):\/\/?(([-a-zA-Z0-9@:%._\+~#=]{1,256}\.?){1,6}\b)([-a-zA-Z0-9()@:%_\+.~#?&\/\/=]*)"
+        &r"(https?)://?(([-a-zA-Z0-9@:%._\+~#=]{1,256}\.?){1,6}\b)([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
     .replace(" ", "")).unwrap();
 
     pub static ref LETTERS_REGEX: Regex = Regex::new(
