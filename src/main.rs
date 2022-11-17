@@ -157,7 +157,7 @@ async fn serve_page() {
         
                                         let temp = StatusImageTemplate {
                                             status: s,
-                                            path: &path,
+                                            path: &path.replace("/","//"),
                                             parts: &a.clone(),
                                             display_name: display_name,
                                             content: post_content,
@@ -172,7 +172,7 @@ async fn serve_page() {
                                     None => {
                                         let temp = StatusTextTemplate {
                                             status: s,
-                                            path: &path,
+                                            path: &path.replace(":/","://"),
                                             parts: &a,
                                             display_name: display_name,
                                             content: post_content,
