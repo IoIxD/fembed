@@ -16,6 +16,10 @@ lazy_static!(
         &r"(https?)://?(([-a-zA-Z0-9@:%._\+~#=]{1,256}\.?){1,6}\b)([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
     .replace(" ", "")).unwrap();
 
+    pub static ref EMOTE_REGEX: Regex = Regex::new(
+        r":(.*?):"
+    ).unwrap();
+
     pub static ref LETTERS_REGEX: Regex = Regex::new(
         r"([A-z]*)"
     ).unwrap();
@@ -82,6 +86,7 @@ async fn serve_page() {
                     Some(a) => a,
                     None => none,
                 };
+                let post_content = EMOTE_REGEX.replace(post_content, "")
                 match s.media_attachments.get(0) {
                     Some(a) => {
                         let (media_width, media_height) = match &a.meta {
