@@ -16,6 +16,10 @@ lazy_static!(
         &r"(https?)://?(([-a-zA-Z0-9@:%._\+~#=]{1,256}\.?){1,6}\b)([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
     .replace(" ", "")).unwrap();
 
+    pub static ref HTML_REGEX: Regex = Regex::new(
+        &r"</?(.*?)>"
+    ).unwrap();
+
     pub static ref EMOTE_REGEX: Regex = Regex::new(
         r":(.*?):"
     ).unwrap();
@@ -23,6 +27,8 @@ lazy_static!(
     pub static ref LETTERS_REGEX: Regex = Regex::new(
         r"([A-z]*)"
     ).unwrap();
+
+
 );
 
 
@@ -75,18 +81,16 @@ async fn serve_page() {
             .build()
             .unwrap();
         rt.block_on(async {
-
             if path == "" {
                 let temp = BareTemplate{};
                 content = temp.render().unwrap();
             } else {
                 let s = &status_from_url(&path).await.unwrap().json;
                 let none = &"".to_string();
-                let post_content = match &s.plain_content {
-                    Some(a) => a,
-                    None => none,
-                };
-                let post_content = EMOTE_REGEX.replace(post_content, "")
+                let post_content = &s.content;
+                let post_content = &(post_content.replace("\"", ""));
+                let post_content = &(HTML_REGEX.replace_all(post_content, "").to_string());
+                let post_content = &(EMOTE_REGEX.replace_all(post_content, "").to_string());
                 match s.media_attachments.get(0) {
                     Some(a) => {
                         let (media_width, media_height) = match &a.meta {
