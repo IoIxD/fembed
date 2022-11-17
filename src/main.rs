@@ -1,5 +1,6 @@
 #![feature(async_closure)]
-#[allow(unused_variables)]
+#![allow(unused_variables)]
+#![allow(unused_assignments)]
 
 use lazy_static::lazy_static;
 use megalodon::detector;
@@ -41,7 +42,7 @@ struct StatusImageTemplate<'a> {
     parts: &'a URLParts,
     display_name: &'a String,
     content: &'a String,
-    media: String,
+    media: &'a String,
     media_width: u32,
     media_height: u32,
     media_type: &'a str,
@@ -95,117 +96,110 @@ async fn serve_page() {
                 content = temp.render().unwrap();
             } else {
                 let parts = match dissect_url(&path).await {
-                    Ok(a) => {
-                        let s = &status_from_url(&a).await;
-                        let s = match s {
-                            Ok(b) => {
-                                let s = &b.json;
-                                let none = &"".to_string();
-        
-                                let display_name = &(EMOTE_REGEX.replace_all(&s.account.display_name, "").to_string());
-        
-                                let post_content = &s.content;
-                                let post_content = &(post_content.replace("\"", ""));
-                                let post_content = &(HTML_REGEX.replace_all(post_content, "").to_string());
-                                let post_content = &(EMOTE_REGEX.replace_all(post_content, "").to_string());
-                                let parts = &b.clone();
-        
-                                match s.media_attachments.get(0) {
-        
-                                    Some(b) => {
-                                        let (mut media_type, mut mime_type): (&str, &str) = ("", "");
-        
-                                        let (media_width, media_height) = match &b.meta {
-                                            Some(a) => {
-                                                match &a.original {
-                                                    Some(a) => {
-                                                        let media_width = match a.width {
-                                                            Some(a) => a,
-                                                            None => 1024,
-                                                        };
-                                                        let media_height = match a.height {
-                                                            Some(a) => a,
-                                                            None => 64,
-                                                        };
-                                                        (media_width, media_height)
-                                                    },
-                                                    None => {
-                                                        let media_width = match a.width {
-                                                            Some(a) => a,
-                                                            None => 1024,
-                                                        };
-                                                        let media_height = match a.height {
-                                                            Some(a) => a,
-                                                            None => 64,
-                                                        };
-                                                        (media_width, media_height)
-                                                    },
-                                                }
-                                            }
-                                            None => (64, 64)
-                                        };
-                                        let media = b.url.clone();
-                                        if media.ends_with(".mp4") {
-                                            media_type = "video";
-                                            mime_type = "mp4";
-                                        } else if media.ends_with(".webm") {
-                                            media_type = "video";
-                                            mime_type = "webm";
-                                        } else {
-                                            media_type = "image";
-                                        }
-        
-                                        let temp = StatusImageTemplate {
-                                            status: s,
-                                            path: &path.replace(":/","://"),
-                                            parts: &a.clone(),
-                                            display_name: display_name,
-                                            content: post_content,
-                                            media: media,
-                                            media_width: media_width,
-                                            media_height: media_height,
-                                            media_type: media_type,
-                                            mime_type: mime_type,
-                                        };
-                                        content = temp.render().unwrap();
-                                    }
-                                    None => {
-                                        let temp = StatusTextTemplate {
-                                            status: s,
-                                            path: &path.replace(":/","://"),
-                                            parts: &a,
-                                            display_name: display_name,
-                                            content: post_content,
-                                        };
-                                        content = temp.render().unwrap();
-                                    }
-                                };
-                            },
-                            Err(err) => {
-                                content = format!("{}",err);
-                            }
-                        };
-                    },
+                    Ok(a) => a,
                     Err(err) => {
-                        content = format!("{}",err);
+                        return Response::builder(OxStatus::OK).with_body(format!("{}",err));
                     }
                 };
-            }
-        });
+                let s = &status_from_url(&parts).await;
+                let s = match s {
+                    Ok(b) => &b.json,
+                    Err(err) => {
+                        return Response::builder(OxStatus::OK).with_body(format!("{}",err));
+                    }
+                };
 
-        Response::builder(OxStatus::OK)
-        .with_header(HeaderName::CONTENT_TYPE, "text/html")
-        .unwrap()
-        .with_body(
-            content
-        )
+                let display_name = &(EMOTE_REGEX.replace_all(&s.account.display_name, "").to_string());
+
+                let post_content = &s.content;
+                let post_content = &(post_content.replace("\"", ""));
+                let post_content = &(HTML_REGEX.replace_all(post_content, "").to_string());
+                let post_content = &(EMOTE_REGEX.replace_all(post_content, "").to_string());
+
+                match s.media_attachments.get(0) {
+
+                    Some(b) => {
+                        let (mut media_type, mut mime_type): (&str, &str) = ("", "");
+
+                        let (media_width, media_height) = match &b.meta {
+                            Some(a) => {
+                                match &a.original {
+                                    Some(a) => {
+                                        let media_width = match a.width {
+                                            Some(a) => a,
+                                            None => 1024,
+                                        };
+                                        let media_height = match a.height {
+                                            Some(a) => a,
+                                            None => 64,
+                                        };
+                                        (media_width, media_height)
+                                    },
+                                    None => {
+                                        let media_width = match a.width {
+                                            Some(a) => a,
+                                            None => 1024,
+                                        };
+                                        let media_height = match a.height {
+                                            Some(a) => a,
+                                            None => 64,
+                                        };
+                                        (media_width, media_height)
+                                    },
+                                }
+                            }
+                            None => (64, 64)
+                        };
+                        let media = &b.url;
+                        if media.ends_with(".mp4") {
+                            media_type = "video";
+                            mime_type = "mp4";
+                        } else if media.ends_with(".webm") {
+                            media_type = "video";
+                            mime_type = "webm";
+                        } else {
+                            media_type = "image";
+                        }
+
+                        let temp = StatusImageTemplate {
+                            status: &s,
+                            path: &path.replace(":/","://"),
+                            parts: &parts,
+                            display_name,
+                            content: post_content,
+                            media,
+                            media_width,
+                            media_height: media_height,
+                            media_type: media_type,
+                            mime_type: mime_type,
+                        };
+                        content = temp.render().unwrap();
+                    }
+                    None => {
+                        let temp = StatusTextTemplate {
+                            status: &s,
+                            path: &path.replace(":/","://"),
+                            parts: &parts,
+                            display_name: display_name,
+                            content: post_content,
+                        };
+                        content = temp.render().unwrap();
+                    }
+                };
+            };
+            Response::builder(OxStatus::OK)
+            .with_header(HeaderName::CONTENT_TYPE, "text/html")
+            .unwrap()
+            .with_body(
+                content
+            )
+        })
     });
     server.set_global_timeout(Duration::from_secs(10));
     server.listen(("localhost", 8087)).unwrap();
 
 }
 
-#[derive(Clone)]
 struct URLParts {
     protocol: String,
     instance: String,
@@ -265,7 +259,7 @@ async fn dissect_url(url: &str) -> Result<URLParts, String> {
 }
 
 async fn status_from_url(parts: &URLParts) -> Result<MegResponse<Status>, String> {
-    let (protocol, instance, id, base_url) = (&parts.protocol, &parts.instance, &parts.id, &parts.base_url);
+    let (_protocol, _instance, id, base_url) = (&parts.protocol, &parts.instance, &parts.id, &parts.base_url);
     println!("\n{}\n",id);
     let instance_type: SNS = match detector(&base_url).await {
         Ok(a) => a,
