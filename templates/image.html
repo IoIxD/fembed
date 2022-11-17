@@ -1,12 +1,19 @@
 <html>
     <head>
-        <meta property="twitter:card" content="summary_large_image"/>
+
         <meta property="og:title" content="{{ display_name }} (@{{ status.account.username }}@{{ parts.instance }})" />
         {% if content != "" %}
             <meta property="og:description" content="{{ content }}" />
         {% endif %}
         <meta property="twitter:{{ media_type }}" content="{{ media }}" />
         <meta property="og:{{ media_type }}" content="{{ media }}" />
+        {% if media_type == "video" %}
+            <meta property="og:video:secure_url" content="{{ media }}" />
+            <meta property="og:video:type" content="video/{{ mime_type }}" />
+            <meta property="twitter:card" content="player"/>
+        {% else %}
+            <meta property="twitter:card" content="summary_large_image"/>
+        {% endif %}
         <meta property="twitter:{{ media_type }}:width" content="{{ media_width }}" />
         <meta property="twitter:{{ media_type }}:height" content="{{ media_height }}" />
         <meta property="og:{{ media_type }}:width" content="{{ media_width }}" />
