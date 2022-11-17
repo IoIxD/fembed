@@ -1,10 +1,12 @@
 <html>
     <head>
-        <meta property="og:title" content="{{ status.account.display_name }} ({{ status.account.username }})" />
+        <meta property="og:title" content="{{ status.account.display_name }} (@{{ status.account.username }}@{{ status.account.username }})" />
         {% if content != "" %}
             <meta property="og:description" content="{{ content }}" />
         {% endif %}
         <meta property="og:image" content="{{ media }}" />
+        <meta property="og:image:width" content="{{ media_width }}" />
+        <meta property="og:image:height" content="{{ media_height }}" />
     </head>
     <body>
         no redirect yet i want to test this

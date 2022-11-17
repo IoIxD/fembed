@@ -28,6 +28,8 @@ struct StatusImageTemplate<'a> {
     status: &'a Status,
     content: &'a String,
     media: String,
+    media_width: u32,
+    media_height: u32,
 }
 
 #[derive(Template)]
@@ -80,13 +82,43 @@ async fn serve_page() {
                     Some(a) => a,
                     None => none,
                 };
-
                 match s.media_attachments.get(0) {
                     Some(a) => {
+                        let (media_width, media_height) = match &a.meta {
+                            Some(a) => {
+                                match &a.original {
+                                    Some(a) => {
+                                        let media_width = match a.width {
+                                            Some(a) => a,
+                                            None => 1024,
+                                        };
+                                        let media_height = match a.height {
+                                            Some(a) => a,
+                                            None => 64,
+                                        };
+                                        (media_width, media_height)
+                                    },
+                                    None => {
+                                        let media_width = match a.width {
+                                            Some(a) => a,
+                                            None => 1024,
+                                        };
+                                        let media_height = match a.height {
+                                            Some(a) => a,
+                                            None => 64,
+                                        };
+                                        (media_width, media_height)
+                                    },
+                                }
+                            }
+                            None => (64, 64)
+                        };
                         let temp = StatusImageTemplate {
                             status: s,
                             content: post_content,
                             media: a.url.clone(),
+                            media_width: media_width,
+                            media_height: media_height,
                         };
                         content = temp.render().unwrap();
                     }
