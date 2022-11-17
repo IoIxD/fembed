@@ -2,6 +2,7 @@
 #[allow(unused_variables)]
 
 use lazy_static::lazy_static;
+use megalodon::detector;
 use megalodon::{SNS, entities::Status, response::Response as MegResponse};
 use regex::{Regex, Captures};
 use tokio::runtime::Builder;
@@ -95,85 +96,93 @@ async fn serve_page() {
             } else {
                 let parts = match dissect_url(&path).await {
                     Ok(a) => {
-                        let s = &status_from_url(&a).await.unwrap().json;
-                        let none = &"".to_string();
+                        let s = &status_from_url(&a).await;
+                        let s = match s {
+                            Ok(b) => {
+                                let s = &b.json;
+                                let none = &"".to_string();
         
-                        let display_name = &(EMOTE_REGEX.replace_all(&s.account.display_name, "").to_string());
-
-                        let post_content = &s.content;
-                        let post_content = &(post_content.replace("\"", ""));
-                        let post_content = &(HTML_REGEX.replace_all(post_content, "").to_string());
-                        let post_content = &(EMOTE_REGEX.replace_all(post_content, "").to_string());
-                        let parts = &a.clone();
-
-                        match s.media_attachments.get(0) {
-
-                            Some(b) => {
-                                let (mut media_type, mut mime_type): (&str, &str) = ("", "");
-
-                                let (media_width, media_height) = match &b.meta {
-                                    Some(a) => {
-                                        match &a.original {
+                                let display_name = &(EMOTE_REGEX.replace_all(&s.account.display_name, "").to_string());
+        
+                                let post_content = &s.content;
+                                let post_content = &(post_content.replace("\"", ""));
+                                let post_content = &(HTML_REGEX.replace_all(post_content, "").to_string());
+                                let post_content = &(EMOTE_REGEX.replace_all(post_content, "").to_string());
+                                let parts = &b.clone();
+        
+                                match s.media_attachments.get(0) {
+        
+                                    Some(b) => {
+                                        let (mut media_type, mut mime_type): (&str, &str) = ("", "");
+        
+                                        let (media_width, media_height) = match &b.meta {
                                             Some(a) => {
-                                                let media_width = match a.width {
-                                                    Some(a) => a,
-                                                    None => 1024,
-                                                };
-                                                let media_height = match a.height {
-                                                    Some(a) => a,
-                                                    None => 64,
-                                                };
-                                                (media_width, media_height)
-                                            },
-                                            None => {
-                                                let media_width = match a.width {
-                                                    Some(a) => a,
-                                                    None => 1024,
-                                                };
-                                                let media_height = match a.height {
-                                                    Some(a) => a,
-                                                    None => 64,
-                                                };
-                                                (media_width, media_height)
-                                            },
+                                                match &a.original {
+                                                    Some(a) => {
+                                                        let media_width = match a.width {
+                                                            Some(a) => a,
+                                                            None => 1024,
+                                                        };
+                                                        let media_height = match a.height {
+                                                            Some(a) => a,
+                                                            None => 64,
+                                                        };
+                                                        (media_width, media_height)
+                                                    },
+                                                    None => {
+                                                        let media_width = match a.width {
+                                                            Some(a) => a,
+                                                            None => 1024,
+                                                        };
+                                                        let media_height = match a.height {
+                                                            Some(a) => a,
+                                                            None => 64,
+                                                        };
+                                                        (media_width, media_height)
+                                                    },
+                                                }
+                                            }
+                                            None => (64, 64)
+                                        };
+                                        let media = b.url.clone();
+                                        if media.ends_with(".mp4") {
+                                            media_type = "video";
+                                            mime_type = "mp4";
+                                        } else if media.ends_with(".webm") {
+                                            media_type = "video";
+                                            mime_type = "webm";
+                                        } else {
+                                            media_type = "image";
                                         }
+        
+                                        let temp = StatusImageTemplate {
+                                            status: s,
+                                            path: &path,
+                                            parts: &a.clone(),
+                                            display_name: display_name,
+                                            content: post_content,
+                                            media: media,
+                                            media_width: media_width,
+                                            media_height: media_height,
+                                            media_type: media_type,
+                                            mime_type: mime_type,
+                                        };
+                                        content = temp.render().unwrap();
                                     }
-                                    None => (64, 64)
+                                    None => {
+                                        let temp = StatusTextTemplate {
+                                            status: s,
+                                            path: &path,
+                                            parts: &a,
+                                            display_name: display_name,
+                                            content: post_content,
+                                        };
+                                        content = temp.render().unwrap();
+                                    }
                                 };
-                                let media = b.url.clone();
-                                if media.ends_with(".mp4") {
-                                    media_type = "video";
-                                    mime_type = "mp4";
-                                } else if media.ends_with(".webm") {
-                                    media_type = "video";
-                                    mime_type = "webm";
-                                } else {
-                                    media_type = "image";
-                                }
-
-                                let temp = StatusImageTemplate {
-                                    status: s,
-                                    path: &path,
-                                    parts: &a.clone(),
-                                    display_name: display_name,
-                                    content: post_content,
-                                    media: media,
-                                    media_width: media_width,
-                                    media_height: media_height,
-                                    media_type: media_type,
-                                    mime_type: mime_type,
-                                };
-                                content = temp.render().unwrap();
-                            }
-                            None => {
-                                let temp = StatusTextTemplate {
-                                    status: s,
-                                    path: &path,
-                                    parts: &a,
-                                    display_name: display_name,
-                                    content: post_content,
-                                };
-                                content = temp.render().unwrap();
+                            },
+                            Err(err) => {
+                                content = format!("{}",err);
                             }
                         };
                     },
@@ -258,20 +267,17 @@ async fn dissect_url(url: &str) -> Result<URLParts, String> {
 async fn status_from_url(parts: &URLParts) -> Result<MegResponse<Status>, String> {
     let (protocol, instance, id, base_url) = (&parts.protocol, &parts.instance, &parts.id, &parts.base_url);
     println!("\n{}\n",id);
-    let instance_type: SNS;
-    // is there any letters in the id?
-    if LETTERS_REGEX.is_match(&id) {
-        // how many characters?
-        if id.len() <= 10 {
-            // pisskey
-            instance_type = megalodon::SNS::Misskey;
-        } else {
-            // pleroma
-            instance_type = megalodon::SNS::Pleroma;
+    let instance_type: SNS = match detector(&base_url).await {
+        Ok(a) => a,
+        Err(err) => return Err(format!("{}",err)),
+    };
+    match instance_type {
+        megalodon::SNS::Misskey => {
+            return Err(String::from("misskey is not fully yet supported by <a href='https://github.com/h3poteto/megalodon-rs/'>the library we use</a>"));
         }
-    } else {
-        // mastodon
-        instance_type = megalodon::SNS::Mastodon;
+        _ => {
+
+        }
     }
 
     let client = megalodon::generator(
