@@ -12,7 +12,7 @@ use askama::Template;
 
 lazy_static!(
     pub static ref URL_REGEX: Regex = Regex::new(
-        &r"(https?)://(www\.)?([-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b) ([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
+        &r"(https?)://?(www\.)?([-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b) ([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
     .replace(" ", "")).unwrap();
 
     pub static ref LETTERS_REGEX: Regex = Regex::new(
@@ -59,7 +59,6 @@ async fn serve_page() {
         let mut path = path.chars();
         path.next();
         let path = path.as_str();
-
         if path == "favicon.ico" {
             return Response::builder(OxStatus::OK).with_body("");
         }
