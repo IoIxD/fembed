@@ -1,10 +1,9 @@
 {status}<html>
     <head>
+        <meta property="og:url" content="{{ path }}" />
         <meta property="og:title" content="{{ display_name }} (@{{ status.account.username }}@{{ parts.instance }})" />
         <meta property="og:description" content="{{ content }}" />
         <meta property="og:image" content="{{ status.account.avatar }}" />
+        <meta http-equiv="refresh" content="0;url={{ path }}"/>
     </head>
-    <body>
-        no redirect yet i want to test this
-    </body>
 </html>

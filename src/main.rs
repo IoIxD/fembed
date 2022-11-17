@@ -36,6 +36,7 @@ lazy_static!(
 #[template(path = "image.html")]
 struct StatusImageTemplate<'a> {
     status: &'a Status,
+    path: &'a str,
     parts: &'a URLParts,
     display_name: &'a String,
     content: &'a String,
@@ -50,6 +51,7 @@ struct StatusImageTemplate<'a> {
 #[template(path = "text.html")]
 struct StatusTextTemplate<'a> {
     status: &'a Status,
+    path: &'a str,
     parts: &'a URLParts,
     display_name: &'a String,
     content: &'a String,
@@ -151,6 +153,7 @@ async fn serve_page() {
 
                                 let temp = StatusImageTemplate {
                                     status: s,
+                                    path: &path,
                                     parts: &a.clone(),
                                     display_name: display_name,
                                     content: post_content,
@@ -165,6 +168,7 @@ async fn serve_page() {
                             None => {
                                 let temp = StatusTextTemplate {
                                     status: s,
+                                    path: &path,
                                     parts: &a,
                                     display_name: display_name,
                                     content: post_content,
