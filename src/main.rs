@@ -42,6 +42,7 @@ struct StatusImageTemplate<'a> {
     media: String,
     media_width: u32,
     media_height: u32,
+    media_type: &'a str,
 }
 
 #[derive(Template)]
@@ -105,6 +106,8 @@ async fn serve_page() {
                         match s.media_attachments.get(0) {
 
                             Some(b) => {
+                                let media_type: &str;
+
                                 let (media_width, media_height) = match &b.meta {
                                     Some(a) => {
                                         match &a.original {
@@ -134,14 +137,22 @@ async fn serve_page() {
                                     }
                                     None => (64, 64)
                                 };
+                                let media = b.url.clone();
+                                if media.ends_with(".mp4") || media.ends_with(".webm") {
+                                    media_type = "video";
+                                } else {
+                                    media_type = "image";
+                                }
+
                                 let temp = StatusImageTemplate {
                                     status: s,
                                     parts: &a.clone(),
                                     display_name: display_name,
                                     content: post_content,
-                                    media: b.url.clone(),
+                                    media: media,
                                     media_width: media_width,
                                     media_height: media_height,
+                                    media_type: media_type,
                                 };
                                 content = temp.render().unwrap();
                             }
