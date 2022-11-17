@@ -1,7 +1,8 @@
 {status}<html>
     <head>
-        <meta property="og:title" content="{{ status.account.display_name }} ({{ status.account.username }})" />
+        <meta property="og:title" content="{{ display_name }} (@{{ status.account.username }}@{{ parts.instance }})" />
         <meta property="og:description" content="{{ content }}" />
+        <meta property="og:image" content="{{ status.account.avatar }}" />
     </head>
     <body>
         no redirect yet i want to test this
