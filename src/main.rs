@@ -36,6 +36,8 @@ lazy_static!(
 #[template(path = "image.html")]
 struct StatusImageTemplate<'a> {
     status: &'a Status,
+    parts: &'a URLParts,
+    display_name: &'a String,
     content: &'a String,
     media: String,
     media_width: u32,
@@ -46,6 +48,8 @@ struct StatusImageTemplate<'a> {
 #[template(path = "text.html")]
 struct StatusTextTemplate<'a> {
     status: &'a Status,
+    parts: &'a URLParts,
+    display_name: &'a String,
     content: &'a String,
 
 }
@@ -85,61 +89,77 @@ async fn serve_page() {
                 let temp = BareTemplate{};
                 content = temp.render().unwrap();
             } else {
-                let s = &status_from_url(&path).await.unwrap().json;
-                let none = &"".to_string();
-                let post_content = &s.content;
-                let post_content = &(post_content.replace("\"", ""));
-                let post_content = &(HTML_REGEX.replace_all(post_content, "").to_string());
-                let post_content = &(EMOTE_REGEX.replace_all(post_content, "").to_string());
-                match s.media_attachments.get(0) {
-                    Some(a) => {
-                        let (media_width, media_height) = match &a.meta {
-                            Some(a) => {
-                                match &a.original {
-                                    Some(a) => {
-                                        let media_width = match a.width {
-                                            Some(a) => a,
-                                            None => 1024,
-                                        };
-                                        let media_height = match a.height {
-                                            Some(a) => a,
-                                            None => 64,
-                                        };
-                                        (media_width, media_height)
-                                    },
-                                    None => {
-                                        let media_width = match a.width {
-                                            Some(a) => a,
-                                            None => 1024,
-                                        };
-                                        let media_height = match a.height {
-                                            Some(a) => a,
-                                            None => 64,
-                                        };
-                                        (media_width, media_height)
-                                    },
-                                }
-                            }
-                            None => (64, 64)
-                        };
-                        let temp = StatusImageTemplate {
-                            status: s,
-                            content: post_content,
-                            media: a.url.clone(),
-                            media_width: media_width,
-                            media_height: media_height,
-                        };
-                        content = temp.render().unwrap();
-                    }
-                    None => {
-                        let temp = StatusTextTemplate {
-                            status: s,
-                            content: post_content,
-                        };
-                        content = temp.render().unwrap();
-                    }
-                }
+                let parts = match dissect_url(&path).await {
+                    Ok(a) => {
+                        let s = &status_from_url(&a).await.unwrap().json;
+                        let none = &"".to_string();
+        
+                        let display_name = &(EMOTE_REGEX.replace_all(&s.account.display_name, "").to_string());
 
+                        let post_content = &s.content;
+                        let post_content = &(post_content.replace("\"", ""));
+                        let post_content = &(HTML_REGEX.replace_all(post_content, "").to_string());
+                        let post_content = &(EMOTE_REGEX.replace_all(post_content, "").to_string());
+                        let parts = &a.clone();
+
+                        match s.media_attachments.get(0) {
+
+                            Some(b) => {
+                                let (media_width, media_height) = match &b.meta {
+                                    Some(a) => {
+                                        match &a.original {
+                                            Some(a) => {
+                                                let media_width = match a.width {
+                                                    Some(a) => a,
+                                                    None => 1024,
+                                                };
+                                                let media_height = match a.height {
+                                                    Some(a) => a,
+                                                    None => 64,
+                                                };
+                                                (media_width, media_height)
+                                            },
+                                            None => {
+                                                let media_width = match a.width {
+                                                    Some(a) => a,
+                                                    None => 1024,
+                                                };
+                                                let media_height = match a.height {
+                                                    Some(a) => a,
+                                                    None => 64,
+                                                };
+                                                (media_width, media_height)
+                                            },
+                                        }
+                                    }
+                                    None => (64, 64)
+                                };
+                                let temp = StatusImageTemplate {
+                                    status: s,
+                                    parts: &a.clone(),
+                                    display_name: display_name,
+                                    content: post_content,
+                                    media: b.url.clone(),
+                                    media_width: media_width,
+                                    media_height: media_height,
+                                };
+                                content = temp.render().unwrap();
+                            }
+                            None => {
+                                let temp = StatusTextTemplate {
+                                    status: s,
+                                    parts: &a,
+                                    display_name: display_name,
+                                    content: post_content,
+                                };
+                                content = temp.render().unwrap();
+                            }
+                        };
+                    },
+                    Err(err) => {
+                        content = format!("{}",err);
+                    }
+                };
             }
         });
 
@@ -152,10 +172,18 @@ async fn serve_page() {
     });
     server.set_global_timeout(Duration::from_secs(10));
     server.listen(("localhost", 8087)).unwrap();
+
 }
 
+#[derive(Clone)]
+struct URLParts {
+    protocol: String,
+    instance: String,
+    id: String,
+    base_url: String,
+}
 
-async fn status_from_url(url: &str) -> Result<MegResponse<Status>, String> {
+async fn dissect_url(url: &str) -> Result<URLParts, String> {
     let captures: Captures = match URL_REGEX.captures(url) {
         Some(a) => a,
         None => {
@@ -198,6 +226,16 @@ async fn status_from_url(url: &str) -> Result<MegResponse<Status>, String> {
 
     let base_url = String::from(format!("{}://{}",protocol,instance));
 
+    Ok(URLParts{
+        protocol,
+        instance,
+        id,
+        base_url,
+    })
+}
+
+async fn status_from_url(parts: &URLParts) -> Result<MegResponse<Status>, String> {
+    let (protocol, instance, id, base_url) = (&parts.protocol, &parts.instance, &parts.id, &parts.base_url);
     println!("\n{}\n",id);
     let instance_type: SNS;
     // is there any letters in the id?
@@ -217,12 +255,12 @@ async fn status_from_url(url: &str) -> Result<MegResponse<Status>, String> {
 
     let client = megalodon::generator(
         instance_type,
-        base_url,
+        base_url.clone(),
         None,
         None
     );
 
-    let status = client.get_status(id).await;
+    let status = client.get_status(id.clone()).await;
 
     match status {
         Ok(a) => Ok(a),
