@@ -6,9 +6,10 @@ use megalodon::{SNS, entities::Status, response::Response as MegResponse};
 use regex::{Regex, Captures};
 use tokio::runtime::Builder;
 use oxhttp::Server;
-use oxhttp::model::{Response,Status as OxStatus};
+use oxhttp::model::{Response,Status as OxStatus,HeaderName};
 use std::time::Duration;
-use askama::Template;
+use std::result::Result;
+use askama::*;
 
 lazy_static!(
     pub static ref URL_REGEX: Regex = Regex::new(
@@ -46,14 +47,14 @@ struct BareTemplate {
 #[tokio::main]
 async fn main() {
     tokio::select! {
-        a = serve_page() => {
+        _ = serve_page() => {
 
         }
     }
 }
 
 async fn serve_page() {
-    let mut server = Server::new(|request| {
+    let mut server = Server::new(|request| -> Response {
         let path = request.url().path().to_string();
         let mut content = String::from("");
         let mut path = path.chars();
@@ -101,7 +102,10 @@ async fn serve_page() {
             }
         });
 
-        Response::builder(OxStatus::OK).with_body(
+        Response::builder(OxStatus::OK)
+        .with_header(HeaderName::CONTENT_TYPE, "text/html")
+        .unwrap()
+        .with_body(
             content
         )
     });
