@@ -200,8 +200,9 @@ async fn serve_page() {
 
 }
 
+#[derive(Clone)]
 struct URLParts {
-    protocol: String,
+    //protocol: String,
     instance: String,
     id: String,
     base_url: String,
@@ -251,7 +252,7 @@ async fn dissect_url(url: &str) -> Result<URLParts, String> {
     let base_url = String::from(format!("{}://{}",protocol,instance));
 
     Ok(URLParts{
-        protocol,
+        //protocol,
         instance,
         id,
         base_url,
@@ -259,8 +260,9 @@ async fn dissect_url(url: &str) -> Result<URLParts, String> {
 }
 
 async fn status_from_url(parts: &URLParts) -> Result<MegResponse<Status>, String> {
-    let (_protocol, _instance, id, base_url) = (&parts.protocol, &parts.instance, &parts.id, &parts.base_url);
-    println!("\n{}\n",id);
+    let parts = parts.clone();
+    let (id, base_url) = (parts.id, parts.base_url);
+
     let instance_type: SNS = match detector(&base_url).await {
         Ok(a) => a,
         Err(err) => return Err(format!("{}",err)),
@@ -276,12 +278,12 @@ async fn status_from_url(parts: &URLParts) -> Result<MegResponse<Status>, String
 
     let client = megalodon::generator(
         instance_type,
-        base_url.clone(),
+        base_url,
         None,
         None
     );
 
-    let status = client.get_status(id.clone()).await;
+    let status = client.get_status(id).await;
 
     match status {
         Ok(a) => Ok(a),
