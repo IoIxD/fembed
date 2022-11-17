@@ -1,0 +1,15 @@
+[package]
+name = "fembed"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+"oxhttp" = "0.1"
+megalodon = { version = "0.1" }
+"regex" = "1"
+"lazy_static" = "1.4"
+tokio = { version = "1", features = ["full"] }
+"url" = "1.7.2"
+"askama" = "0.10"
