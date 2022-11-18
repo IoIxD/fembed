@@ -48,6 +48,7 @@ struct StatusImageTemplate<'a> {
     media_height: u32,
     media_type: &'a str,
     mime_type: &'a str,
+    post_header: &'a String,
 }
 
 #[derive(Template)]
@@ -122,7 +123,9 @@ async fn main() {
                 let post_content = &(post_content.replace("\"", ""));
                 let post_content = &(HTML_REGEX.replace_all(post_content, "").to_string());
                 let post_content = &(EMOTE_REGEX.replace_all(post_content, "").to_string());
-
+                
+                let mut post_header: String = String::from("");
+                
                 match s.media_attachments.get(0) {
 
                     Some(b) => {
@@ -160,9 +163,16 @@ async fn main() {
 
                         let mut media = b.clone().url;
                         let client = Client::new();
+                        println!("{}",media);
                         match client.head(&media).send() {
                             Ok(a) => {
-                                media = a.url().to_string();
+                                let media_new = a.url().to_string();
+                                if media_new.ends_with(".mp4") || media_new.ends_with(".webm") {
+                                    media = media_new;
+                                } else {
+                                    post_header = String::from("*(note from fembed: the video redirected to a blob object (which discord won't even embed), which might mean its on an aws s3 instance or something through a proxy. discord might not play this video)*");
+                                }
+                                
                             }
                             Err(err) => {}
                         };
@@ -181,8 +191,9 @@ async fn main() {
                             status: &s,
                             path: &path.replace(":/","://"),
                             parts: &parts,
+                            post_header: &post_header,
                             display_name,
-                            content: post_content,
+                            content: &post_content,
                             media,
                             media_width,
                             media_height: media_height,
@@ -197,7 +208,7 @@ async fn main() {
                             path: &path.replace(":/","://"),
                             parts: &parts,
                             display_name: display_name,
-                            content: post_content,
+                            content: &post_content,
                         };
                         return temp.render().unwrap();
                     }

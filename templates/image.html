@@ -2,8 +2,11 @@
     <head>
         <meta property="og:url" content="{{ path }}" />
         <meta property="og:title" content="{{ display_name }} (@{{ status.account.username }}@{{ parts.instance }})" />
+        {% if post_header != "" %}
+        <meta property="og:site_name" content="{{ post_header }}" />
+        {% endif %}
         {% if content != "" %}
-            <meta property="og:description" content="{{ content }}" />
+        <meta property="og:description" content="{{ content }}" />
         {% endif %}
         <meta property="twitter:{{ media_type }}" content="{{ media }}" />
         <meta property="og:{{ media_type }}" content="{{ media }}" />
