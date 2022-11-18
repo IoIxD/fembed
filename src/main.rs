@@ -57,7 +57,13 @@ struct StatusTextTemplate<'a> {
     parts: &'a URLParts,
     display_name: &'a String,
     content: &'a String,
+}
 
+#[derive(Template)]
+#[template(path = "error.html")]
+struct ErrorTemplate<'a> {
+    content: &'a String,
+    path: &'a str,
 }
 
 #[derive(Template)]
@@ -78,7 +84,6 @@ async fn main() {
 async fn serve_page() {
     let mut server = Server::new(|request| -> Response {
         let path = request.url().path().to_string();
-        let mut content = String::from("");
         let mut path = path.chars();
         path.next();
         let path = path.as_str();
@@ -91,21 +96,30 @@ async fn serve_page() {
             .build()
             .unwrap();
         rt.block_on(async {
-            if path == "" {
-                let temp = BareTemplate{};
-                content = temp.render().unwrap();
-            } else {
+            let content: String = async {
+                if path == "" {
+                    let temp = BareTemplate{};
+                    return temp.render().unwrap();
+                };
                 let parts = match dissect_url(&path).await {
                     Ok(a) => a,
                     Err(err) => {
-                        return Response::builder(OxStatus::OK).with_body(format!("{}",err));
+                        let temp = ErrorTemplate{
+                            content: &err.to_string(),
+                            path,
+                        };
+                        return temp.render().unwrap();
                     }
                 };
                 let s = &status_from_url(&parts).await;
                 let s = match s {
                     Ok(b) => &b.json,
                     Err(err) => {
-                        return Response::builder(OxStatus::OK).with_body(format!("{}",err));
+                        let temp = ErrorTemplate{
+                            content: &err.to_string(),
+                            path,
+                        };
+                        return temp.render().unwrap();
                     }
                 };
 
@@ -173,7 +187,7 @@ async fn serve_page() {
                             media_type: media_type,
                             mime_type: mime_type,
                         };
-                        content = temp.render().unwrap();
+                        return temp.render().unwrap();
                     }
                     None => {
                         let temp = StatusTextTemplate {
@@ -183,10 +197,11 @@ async fn serve_page() {
                             display_name: display_name,
                             content: post_content,
                         };
-                        content = temp.render().unwrap();
+                        return temp.render().unwrap();
                     }
                 };
-            };
+            }.await;
+
             Response::builder(OxStatus::OK)
             .with_header(HeaderName::CONTENT_TYPE, "text/html")
             .unwrap()
@@ -265,11 +280,17 @@ async fn status_from_url(parts: &URLParts) -> Result<MegResponse<Status>, String
 
     let instance_type: SNS = match detector(&base_url).await {
         Ok(a) => a,
-        Err(err) => return Err(format!("{}",err)),
+        Err(err) => {
+            if err.to_string().ends_with("line 1 column 1") {
+                megalodon::SNS::Misskey
+            } else {
+                return Err(err.to_string());
+            }
+        }
     };
     match instance_type {
         megalodon::SNS::Misskey => {
-            return Err(String::from("misskey is not fully yet supported by <a href='https://github.com/h3poteto/megalodon-rs/'>the library we use</a>"));
+            return Err(String::from("misskey is not yet supported sorry."));
         }
         _ => {
 
