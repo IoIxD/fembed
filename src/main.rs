@@ -5,10 +5,15 @@
 use lazy_static::lazy_static;
 use megalodon::detector;
 use megalodon::{SNS, entities::Status, response::Response as MegResponse};
+use misskey::ClientExt;
+use misskey::model::id::Id;
+use misskey::model::id::object_id::ObjectId;
+use misskey::websocket::WebSocketClient;
+use misskey::model::note::Note;
 use regex::{Regex, Captures};
 use tokio::runtime::Builder;
 use oxhttp::Server;
-use oxhttp::model::{Response,Status as OxStatus,HeaderName};
+use oxhttp::model::{Response as HttpResponse,Status as OxStatus,HeaderName};
 use std::time::Duration;
 use std::result::Result;
 use askama::*;
@@ -76,14 +81,14 @@ async fn main() {
 }
 
 async fn serve_page() {
-    let mut server = Server::new(|request| -> Response {
+    let mut server = Server::new(|request| -> HttpResponse {
         let path = request.url().path().to_string();
         let mut content = String::from("");
         let mut path = path.chars();
         path.next();
         let path = path.as_str();
         if path == "favicon.ico" {
-            return Response::builder(OxStatus::OK).with_body("");
+            return HttpResponse::builder(OxStatus::OK).with_body("");
         }
 
         let rt = Builder::new_current_thread()
@@ -98,14 +103,14 @@ async fn serve_page() {
                 let parts = match dissect_url(&path).await {
                     Ok(a) => a,
                     Err(err) => {
-                        return Response::builder(OxStatus::OK).with_body(format!("{}",err));
+                        return HttpResponse::builder(OxStatus::OK).with_body(format!("{}",err));
                     }
                 };
                 let s = &status_from_url(&parts).await;
                 let s = match s {
                     Ok(b) => &b.json,
                     Err(err) => {
-                        return Response::builder(OxStatus::OK).with_body(format!("{}",err));
+                        return HttpResponse::builder(OxStatus::OK).with_body(format!("{}",err));
                     }
                 };
 
@@ -187,7 +192,7 @@ async fn serve_page() {
                     }
                 };
             };
-            Response::builder(OxStatus::OK)
+            HttpResponse::builder(OxStatus::OK)
             .with_header(HeaderName::CONTENT_TYPE, "text/html")
             .unwrap()
             .with_body(
@@ -259,35 +264,59 @@ async fn dissect_url(url: &str) -> Result<URLParts, String> {
     })
 }
 
-async fn status_from_url(parts: &URLParts) -> Result<MegResponse<Status>, String> {
+enum FediResponse {
+    Normal(MegResponse<Status>),
+    Pisskey(Note)
+}
+
+async fn status_from_url(parts: &URLParts) -> Result<FediResponse, String> {
     let parts = parts.clone();
-    let (id, base_url) = (parts.id, parts.base_url);
+    let (instance, id, base_url) = (parts.instance, parts.id, parts.base_url);
 
     let instance_type: SNS = match detector(&base_url).await {
         Ok(a) => a,
         Err(err) => return Err(format!("{}",err)),
     };
     match instance_type {
+        // misskey needs its own package
         megalodon::SNS::Misskey => {
-            return Err(String::from("misskey is not fully yet supported by <a href='https://github.com/h3poteto/megalodon-rs/'>the library we use</a>"));
+            let client: WebSocketClient = match WebSocketClient::connect(instance).await {
+                Ok(a) => a,
+                Err(err) => return Err(format!("{}",err)),
+            };
+            
+            let id: Id<Note> = Id::from(
+                ObjectId{
+                    timestamp: todo!(),
+                    random: todo!(),
+                }
+            );
+            let status = client.get_note(Id{
+
+            }).await;
+
+            match status {
+                Ok(a) => Ok(FediResponse::Pisskey(a)),
+                Err(err) => Err(format!("{}",err))
+            }
         }
         _ => {
-
+            let client = megalodon::generator(
+                instance_type,
+                base_url,
+                None,
+                None
+            );
+        
+            let status = client.get_status(id).await;
+        
+            match status {
+                Ok(a) => Ok(FediResponse::Normal(a)),
+                Err(err) => Err(format!("{}",err))
+            }
+            
         }
     }
 
-    let client = megalodon::generator(
-        instance_type,
-        base_url,
-        None,
-        None
-    );
-
-    let status = client.get_status(id).await;
-
-    match status {
-        Ok(a) => Ok(a),
-        Err(err) => Err(format!("{}",err))
-    }
 
 }
