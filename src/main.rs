@@ -8,7 +8,6 @@ use megalodon::{SNS, entities::Status, response::Response as MegResponse};
 use regex::{Regex, Captures};
 use tokio::runtime::Builder;
 use oxhttp::{Server};
-use reqwest::{Client, StatusCode};
 use oxhttp::model::{Response,Status as OxStatus,HeaderName};
 use std::time::Duration;
 use std::result::Result;
@@ -124,7 +123,7 @@ async fn main() {
                 let post_content = &(HTML_REGEX.replace_all(post_content, "").to_string());
                 let post_content = &(EMOTE_REGEX.replace_all(post_content, "").to_string());
                 
-                let mut post_header: String = String::from("");
+                let post_header: String = String::from("");
                 
                 match s.media_attachments.get(0) {
 
@@ -161,21 +160,7 @@ async fn main() {
                             None => (64, 64)
                         };
 
-                        let mut media = b.clone().url;
-                        let client = Client::new();
-                        println!("{}",media);
-                        match client.head(&media).send() {
-                            Ok(a) => {
-                                let media_new = a.url().to_string();
-                                if media_new.ends_with(".mp4") || media_new.ends_with(".webm") {
-                                    media = media_new;
-                                } else {
-                                    post_header = String::from("*(note from fembed: the video redirected to a blob object (which discord won't even embed), which might mean its on an aws s3 instance or something through a proxy. discord might not play this video)*");
-                                }
-                                
-                            }
-                            Err(err) => {}
-                        };
+                        let media = b.clone().url;
 
                         if media.ends_with(".mp4") {
                             media_type = "video";
