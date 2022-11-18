@@ -7,7 +7,8 @@ use megalodon::detector;
 use megalodon::{SNS, entities::Status, response::Response as MegResponse};
 use regex::{Regex, Captures};
 use tokio::runtime::Builder;
-use oxhttp::Server;
+use oxhttp::{Server};
+use reqwest::{Client, StatusCode};
 use oxhttp::model::{Response,Status as OxStatus,HeaderName};
 use std::time::Duration;
 use std::result::Result;
@@ -42,7 +43,7 @@ struct StatusImageTemplate<'a> {
     parts: &'a URLParts,
     display_name: &'a String,
     content: &'a String,
-    media: &'a String,
+    media: String,
     media_width: u32,
     media_height: u32,
     media_type: &'a str,
@@ -164,7 +165,16 @@ async fn serve_page() {
                             }
                             None => (64, 64)
                         };
-                        let media = &b.url;
+
+                        let mut media = b.clone().url;
+                        let client = Client::new();
+                        match client.head(&media).send() {
+                            Ok(a) => {
+                                media = a.url().to_string();
+                            }
+                            Err(err) => {}
+                        };
+
                         if media.ends_with(".mp4") {
                             media_type = "video";
                             mime_type = "mp4";
@@ -288,13 +298,8 @@ async fn status_from_url(parts: &URLParts) -> Result<MegResponse<Status>, String
             }
         }
     };
-    match instance_type {
-        megalodon::SNS::Misskey => {
-            return Err(String::from("misskey is not yet supported sorry."));
-        }
-        _ => {
-
-        }
+    if let megalodon::SNS::Misskey = instance_type {
+        return Err(String::from("misskey is not yet supported sorry."));
     }
 
     let client = megalodon::generator(
