@@ -75,14 +75,6 @@ struct BareTemplate {
 
 #[tokio::main]
 async fn main() {
-    tokio::select! {
-        _ = serve_page() => {
-
-        }
-    }
-}
-
-async fn serve_page() {
     let mut server = Server::new(|request| -> Response {
         let path = request.url().path().to_string();
         let mut path = path.chars();
